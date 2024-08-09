@@ -79,7 +79,7 @@ class PeriodicStateUpdater:
         Thread(target=self.run).start()
 
     def run(self):
-        logger.info("starting PeriodicStateUpdater")
+        logger.info("PeriodicStateUpdater: starting")
         while self.mqtt_client.is_connected():
             time.sleep(self.period_s)
             for l in self.data_object["all_lamps"].values():
