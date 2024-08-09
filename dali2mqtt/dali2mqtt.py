@@ -72,23 +72,28 @@ associated_lamp_update_executor = concurrent.futures.ThreadPoolExecutor(max_work
 
 
 class PeriodicStateUpdater:
-    def __init__(self, mqtt_client, data_object, period_s=10):
+    def __init__(self, mqtt_client, data_object):
         self.mqtt_client = mqtt_client
         self.data_object = data_object
-        self.period_s = period_s
         Thread(target=self.run).start()
 
-    def run(self):
+    def run(self, check_s=10, heartbeat_s=5*60):
         logger.info("PeriodicStateUpdater: starting")
+        last_check, last_heartbeat = time.time(), time.time()
         while self.mqtt_client.is_connected():
-            time.sleep(self.period_s)
-            for l in self.data_object["all_lamps"].values():
-                if not l.is_group():
-                    l_before = l.level
-                    l.actual_level()
-                    if l_before != l.level:
-                        logger.info("PeriodicStateUpdater: update state of lamp {}".format(l.short_address))
-                        retrieve_actual_level(self.mqtt_client, self.data_object, l)
+            time.sleep(1)
+            if time.time() > last_check + check_s:
+                for l in self.data_object["all_lamps"].values():
+                    if not l.is_group():
+                        l_before = l.level
+                        l.actual_level()
+                        if l_before != l.level:
+                            logger.info(f"PeriodicStateUpdater: update state of lamp {l.short_address}")
+                            retrieve_actual_level(self.mqtt_client, self.data_object, l)
+            if time.time() > last_heartbeat + heartbeat_s:
+                logger.info("PeriodicStateUpdater: heartbeat")
+                for l in self.data_object["all_lamps"].values():
+                    retrieve_actual_level(self.mqtt_client, self.data_object, l)
 
 
 def dali_scan(dali_driver):
