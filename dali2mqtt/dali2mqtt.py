@@ -71,6 +71,26 @@ logger = logging.getLogger(__name__)
 associated_lamp_update_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 
+class PeriodicStateUpdater:
+    def __init__(self, mqtt_client, data_object, period_s=10):
+        self.mqtt_client = mqtt_client
+        self.data_object = data_object
+        self.period_s = period_s
+        Thread(target=self.run).start()
+
+    def run(self):
+        logger.info("starting PeriodicStateUpdater")
+        while self.mqtt_client.is_connected():
+            time.sleep(self.period_s)
+            for l in self.data_object["all_lamps"].values():
+                if not l.is_group():
+                    l_before = l.level
+                    l.actual_level()
+                    if l_before != l.level:
+                        logger.info("PeriodicStateUpdater: update state of lamp {}".format(l.short_address))
+                        retrieve_actual_level(self.mqtt_client, self.data_object, l)
+
+
 def dali_scan(dali_driver):
     """Scan a maximum number of dali devices."""
     lamps = []
@@ -402,6 +422,7 @@ def on_connect(
         topic=MQTT_DALI2MQTT_STATUS.format(mqtt_base_topic), payload=MQTT_AVAILABLE, retain=True
     )
     initialize_lamps(data_object, client)
+    PeriodicStateUpdater(client, data_object)
 
 
 def create_mqtt_client(
