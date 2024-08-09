@@ -2,6 +2,7 @@
 import logging
 
 import yaml
+import dali.address as address
 from dali2mqtt.consts import ALL_SUPPORTED_LOG_LEVELS, LOG_FORMAT
 
 logging.basicConfig(format=LOG_FORMAT)
@@ -50,9 +51,15 @@ class DevicesNamesConfig:
         """Save configuration back to yaml file."""
         self._devices_names = {}
         for lamp_object in all_lamps.values():
-            self._devices_names[lamp_object.short_address.address] = {
-                "friendly_name": str(lamp_object.short_address.address)
-            }
+            if isinstance(lamp_object.short_address, address.Short):
+                self._devices_names[lamp_object.short_address.address] = {
+                    "friendly_name": str(lamp_object.short_address.address)
+                }
+            elif isinstance(lamp_object.short_address, address.Group):
+                name = f"group_{lamp_object.short_address.group}"
+                self._devices_names[name] = {
+                    "friendly_name": str(name)
+                }
         try:
             with open(self._path, "w") as outfile:
                 yaml.dump(
