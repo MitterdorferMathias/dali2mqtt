@@ -8,7 +8,6 @@ import re
 from threading import Thread
 import time
 import os
-import concurrent.futures
 
 import paho.mqtt.client as mqtt
 
@@ -68,13 +67,18 @@ from dali2mqtt.consts import (
 logging.basicConfig(format=LOG_FORMAT, level=os.environ.get("LOGLEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
-associated_lamp_update_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-
 # NOTE: regarding thread safety:
 # paho.mqtt should be thread safe? (https://github.com/eclipse/paho.mqtt.python/issues/358)
 # SyncHassebDALIUSBDriver seems to be not thread safe (python-dali library)
 # TODO: fix it if it causes any problems
 class PeriodicStateUpdater:
+    """ 
+    Periodically update states of lights.
+
+    This helps to:
+      - detect changes of the system by e.g. a DALI push button
+      - sends heartbeats with state if e.g. homeassistant restarts
+    """
     def __init__(self, mqtt_client, data_object):
         self.mqtt_client = mqtt_client
         self.data_object = data_object
@@ -280,7 +284,6 @@ def on_message_cmd(mqtt_client:mqtt.Client, data_object, msg):
                 MQTT_PAYLOAD_OFF,
                 retain=True,
             )
-            update_associated_lamps(mqtt_client, data_object, lamp_object)
         except DALIError as err:
             logger.error("Failed to set light <%s> to OFF: %s", light, err)
         except KeyError:
@@ -331,7 +334,7 @@ def on_message_brightness_cmd(mqtt_client:mqtt.Client, data_object, msg):
                 payload = lamp_object.level,
                 retain=True,
             )
-            update_associated_lamps(mqtt_client, data_object, lamp_object)
+            # update_associated_lamps(mqtt_client, data_object, lamp_object)
         except ValueError as err:
             logger.error(
                 "Can't convert <%s> to integer %d..%d: %s",
@@ -358,25 +361,6 @@ def on_message_brightness_get_cmd(mqtt_client:mqtt.Client, data_object, msg):
     except KeyError:
         logger.error("Lamp %s doesn't exists", light)
         
-def update_associated_lamps(mqtt_client:mqtt.Client, data_object, lamp_object):
-    if lamp_object.associated_lamps:
-        """Give 1 sec to complete the main action before evaluating the associations"""
-        time.sleep(1)
-        associated_lamp_update_executor.submit(execute_update_associated_lamps, mqtt_client, data_object, lamp_object)
-                            
-def execute_update_associated_lamps(mqtt_client:mqtt.Client, data_object, lamp_object):
-    if lamp_object.associated_lamps:
-        requested_lamps =[]  
-        for assoc_lamp in lamp_object.associated_lamps:
-            if not assoc_lamp.device_name in requested_lamps:
-                retrieve_actual_level(mqtt_client, data_object, assoc_lamp)
-                requested_lamps.append(assoc_lamp.device_name)
-                if lamp_object.is_group():
-                    if assoc_lamp.associated_lamps:
-                        for nested_lamp in assoc_lamp.associated_lamps:
-                            if nested_lamp.device_name != lamp_object.device_name and not nested_lamp.device_name in requested_lamps:
-                                retrieve_actual_level(mqtt_client, data_object, nested_lamp)
-                                requested_lamps.append(nested_lamp.device_name)      
         
 def retrieve_actual_level(mqtt_client:mqtt.Client, data_object, lamp_object):
         try:
