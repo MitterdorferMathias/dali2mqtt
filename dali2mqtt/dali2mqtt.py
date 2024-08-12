@@ -70,7 +70,10 @@ logger = logging.getLogger(__name__)
 
 associated_lamp_update_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
-
+# NOTE: regarding thread safety:
+# paho.mqtt should be thread safe? (https://github.com/eclipse/paho.mqtt.python/issues/358)
+# SyncHassebDALIUSBDriver seems to be not thread safe (python-dali library)
+# TODO: fix it if it causes any problems
 class PeriodicStateUpdater:
     def __init__(self, mqtt_client, data_object):
         self.mqtt_client = mqtt_client
@@ -81,7 +84,7 @@ class PeriodicStateUpdater:
         logger.info("PeriodicStateUpdater: starting")
         last_check, last_heartbeat = time.time(), time.time()
         while self.mqtt_client.is_connected():
-            time.sleep(1)
+            time.sleep(check_s)
             if time.time() > last_check + check_s:
                 for l in self.data_object["all_lamps"].values():
                     if not l.is_group():
@@ -90,10 +93,12 @@ class PeriodicStateUpdater:
                         if l_before != l.level:
                             logger.info(f"PeriodicStateUpdater: update state of lamp {l.short_address}")
                             retrieve_actual_level(self.mqtt_client, self.data_object, l)
+                last_check = time.time()
             if time.time() > last_heartbeat + heartbeat_s:
                 logger.info("PeriodicStateUpdater: heartbeat")
                 for l in self.data_object["all_lamps"].values():
                     retrieve_actual_level(self.mqtt_client, self.data_object, l)
+                last_heartbeat = time.time()
 
 
 def dali_scan(dali_driver):
