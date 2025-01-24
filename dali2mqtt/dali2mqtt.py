@@ -84,7 +84,7 @@ class PeriodicStateUpdater:
         self.data_object = data_object
         Thread(target=self.run).start()
 
-    def run(self, check_s=10, heartbeat_s=5*60):
+    def run(self, check_s=1, heartbeat_s=5*60):
         logger.info("PeriodicStateUpdater: starting")
         last_check, last_heartbeat = time.time(), time.time()
         while self.mqtt_client.is_connected():
