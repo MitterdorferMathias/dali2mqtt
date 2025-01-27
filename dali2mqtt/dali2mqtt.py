@@ -33,6 +33,7 @@ from dali2mqtt.consts import (
     CONF_MQTT_PORT,
     CONF_MQTT_SERVER,
     CONF_MQTT_USERNAME,
+    CONF_PERIODIC_UPDATER_CHECK_S,
     DALI_DRIVERS,
     DALI_SERVER,
     DEFAULT_CONFIG_FILE,
@@ -84,12 +85,12 @@ class PeriodicStateUpdater:
         self.data_object = data_object
         Thread(target=self.run).start()
 
-    def run(self, check_s=1, heartbeat_s=5*60):
+    def run(self, heartbeat_s=5*60):
         logger.info("PeriodicStateUpdater: starting")
         last_check, last_heartbeat = time.time(), time.time()
         while self.mqtt_client.is_connected():
-            time.sleep(check_s)
-            if time.time() > last_check + check_s:
+            time.sleep(1)
+            if time.time() > last_check + self.data_object[CONF_PERIODIC_UPDATER_CHECK_S]:
                 for l in self.data_object["all_lamps"].values():
                     if not l.is_group():
                         l_before = l.level
@@ -429,6 +430,7 @@ def create_mqtt_client(
     devices_names_config,
     ha_prefix,
     log_level,
+    periodic_updater_check_s,
 ) -> mqtt.Client:
     """Create MQTT client object, setup callbacks and connection to server."""
     logger.debug("Connecting to %s:%s", mqtt_server, mqtt_port)
@@ -440,6 +442,7 @@ def create_mqtt_client(
             "ha_prefix": ha_prefix,
             "devices_names_config": devices_names_config,
             "log_level": log_level,
+            CONF_PERIODIC_UPDATER_CHECK_S: periodic_updater_check_s,
             "all_lamps": {},
         },
     )
@@ -524,6 +527,7 @@ def main(args):
                 devices_names_config,
                 config.ha_discovery_prefix,
                 config.log_level,
+                config.periodic_updater_check_s,
             )
             mqttc.loop_forever()
             retries = (

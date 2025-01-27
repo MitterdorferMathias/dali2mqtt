@@ -16,6 +16,7 @@ from dali2mqtt.consts import (
     CONF_MQTT_PORT,
     CONF_MQTT_SERVER,
     CONF_MQTT_USERNAME,
+    CONF_PERIODIC_UPDATER_CHECK_S,
     DALI_DRIVERS,
     DEFAULT_DALI_DRIVER,
     DEFAULT_DEVICES_NAMES_FILE,
@@ -48,6 +49,7 @@ CONF_SCHEMA = vol.Schema(
             ALL_SUPPORTED_LOG_LEVELS
         ),
         vol.Optional(CONF_LOG_COLOR, default=DEFAULT_LOG_COLOR): bool,
+        vol.Optional(CONF_PERIODIC_UPDATER_CHECK_S, default=4): int,
     },
     extra=True,
 )
@@ -164,6 +166,11 @@ class Config:
     def log_color(self):
         """Color to be used for logs."""
         return self._config[CONF_LOG_COLOR]
+    
+    @property
+    def periodic_updater_check_s(self):
+        """period to check for dali changes in network."""
+        return self._config[CONF_PERIODIC_UPDATER_CHECK_S]
 
     @property
     def devices_names_file(self):

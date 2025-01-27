@@ -23,6 +23,7 @@ CONF_DALI_LAMPS = "dali_lamps"
 CONF_HA_DISCOVERY_PREFIX = "ha_discovery_prefix"
 CONF_LOG_LEVEL = "log_level"
 CONF_LOG_COLOR = "log_color"
+CONF_PERIODIC_UPDATER_CHECK_S = "periodic_updater_check_s"
 
 DEFAULT_CONFIG_FILE = "config.yaml"
 DEFAULT_DEVICES_NAMES_FILE = "devices.yaml"
